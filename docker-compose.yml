@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  auth:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - LK_API_KEY=${LK_API_KEY}
+      - LK_API_SECRET=${LK_API_SECRET}
+      - LK_URL=${LK_URL}
+    restart: unless-stopped
