@@ -27,17 +27,13 @@ if not API_KEY or not API_SECRET:
 if not LK_URL:
     raise RuntimeError("LK_URL environment variable must be set")
 
-# If using plain HTTP (no SSL), create a session that won't try SSL
-_use_insecure = LK_HTTP_URL.startswith("http://")
-if _use_insecure:
-    _ssl_ctx = ssl.create_default_context()
-    _ssl_ctx.check_hostname = False
-    _ssl_ctx.verify_mode = ssl.CERT_NONE
-    _connector = aiohttp.TCPConnector(ssl=False)
-    _session = aiohttp.ClientSession(connector=_connector)
-    lk_api = LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET, session=_session)
-else:
-    lk_api = LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET)
+def _make_lk_api():
+    """Create LiveKitAPI with SSL disabled for plain HTTP URLs."""
+    if LK_HTTP_URL.startswith("http://"):
+        connector = aiohttp.TCPConnector(ssl=False)
+        session = aiohttp.ClientSession(connector=connector)
+        return LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET, session=session)
+    return LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET)
 
 
 class TokenRequest(BaseModel):
@@ -99,28 +95,32 @@ async def get_whip_endpoint(req: WhipRequest):
     participant_identity = f"{req.identity}-{req.track_type}"
     ingress_name = f"{req.room}-{participant_identity}"
 
-    # Clean up any existing ingress with the same name
+    api = _make_lk_api()
     try:
-        existing = await lk_api.ingress.list_ingress()
-        for ing in existing:
-            if ing.name == ingress_name:
-                await lk_api.ingress.delete_ingress(ing.ingress_id)
-    except Exception:
-        pass  # If listing fails, proceed to create
+        # Clean up any existing ingress with the same name
+        try:
+            existing = await api.ingress.list_ingress()
+            for ing in existing:
+                if ing.name == ingress_name:
+                    await api.ingress.delete_ingress(ing.ingress_id)
+        except Exception:
+            pass  # If listing fails, proceed to create
 
-    # Create a new WHIP ingress
-    try:
-        ingress = await lk_api.ingress.create_ingress(
-            CreateIngressRequest(
-                input_type=IngressInput.WHIP_INPUT,
-                name=ingress_name,
-                room_name=req.room,
-                participant_identity=participant_identity,
-                participant_name=f"{req.identity} ({req.track_type})",
+        # Create a new WHIP ingress
+        try:
+            ingress = await api.ingress.create_ingress(
+                CreateIngressRequest(
+                    input_type=IngressInput.WHIP_INPUT,
+                    name=ingress_name,
+                    room_name=req.room,
+                    participant_identity=participant_identity,
+                    participant_name=f"{req.identity} ({req.track_type})",
+                )
             )
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create ingress: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to create ingress: {str(e)}")
+    finally:
+        await api.aclose()
 
     # Also generate a viewer token for the client to subscribe to tracks
     viewer_token = (
