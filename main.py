@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from livekit.api import LiveKitAPI, AccessToken, VideoGrants
 from livekit.protocol.ingress import CreateIngressRequest, IngressInput
 import os
+import ssl
+import aiohttp
 
 app = FastAPI(title="LiveKit Auth Service")
 
@@ -25,7 +27,17 @@ if not API_KEY or not API_SECRET:
 if not LK_URL:
     raise RuntimeError("LK_URL environment variable must be set")
 
-lk_api = LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET)
+# If using plain HTTP (no SSL), create a session that won't try SSL
+_use_insecure = LK_HTTP_URL.startswith("http://")
+if _use_insecure:
+    _ssl_ctx = ssl.create_default_context()
+    _ssl_ctx.check_hostname = False
+    _ssl_ctx.verify_mode = ssl.CERT_NONE
+    _connector = aiohttp.TCPConnector(ssl=False)
+    _session = aiohttp.ClientSession(connector=_connector)
+    lk_api = LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET, session=_session)
+else:
+    lk_api = LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET)
 
 
 class TokenRequest(BaseModel):
