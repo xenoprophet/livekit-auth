@@ -1,11 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from livekit.api import LiveKitAPI, AccessToken, VideoGrants
-from livekit.protocol.ingress import CreateIngressRequest, IngressInput
+from livekit.api import AccessToken, VideoGrants
 import os
-import ssl
 import aiohttp
+import time
 
 app = FastAPI(title="LiveKit Auth Service")
 
@@ -27,13 +26,35 @@ if not API_KEY or not API_SECRET:
 if not LK_URL:
     raise RuntimeError("LK_URL environment variable must be set")
 
-def _make_lk_api():
-    """Create LiveKitAPI with SSL disabled for plain HTTP URLs."""
-    if LK_HTTP_URL.startswith("http://"):
-        connector = aiohttp.TCPConnector(ssl=False)
-        session = aiohttp.ClientSession(connector=connector)
-        return LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET, session=session)
-    return LiveKitAPI(url=LK_HTTP_URL, api_key=API_KEY, api_secret=API_SECRET)
+def _make_twirp_token(grants: dict) -> str:
+    """Create a signed JWT for LiveKit Twirp API calls."""
+    import jwt
+    now = int(time.time())
+    payload = {
+        "iss": API_KEY,
+        "sub": API_KEY,
+        "iat": now,
+        "exp": now + 600,
+        "video": grants,
+    }
+    return jwt.encode(payload, API_SECRET, algorithm="HS256")
+
+
+async def _twirp_request(method: str, body: dict) -> dict:
+    """Make a Twirp RPC call to the LiveKit server."""
+    url = f"{LK_HTTP_URL}/twirp/livekit.Ingress/{method}"
+    token = _make_twirp_token({"ingressAdmin": True})
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    ssl_ctx = False if LK_HTTP_URL.startswith("http://") else None
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=body, headers=headers, ssl=ssl_ctx) as resp:
+            data = await resp.json()
+            if resp.status != 200:
+                raise Exception(data.get("msg", f"Twirp error {resp.status}"))
+            return data
 
 
 class TokenRequest(BaseModel):
@@ -95,32 +116,26 @@ async def get_whip_endpoint(req: WhipRequest):
     participant_identity = f"{req.identity}-{req.track_type}"
     ingress_name = f"{req.room}-{participant_identity}"
 
-    api = _make_lk_api()
+    # Clean up any existing ingress with the same name
     try:
-        # Clean up any existing ingress with the same name
-        try:
-            existing = await api.ingress.list_ingress()
-            for ing in existing:
-                if ing.name == ingress_name:
-                    await api.ingress.delete_ingress(ing.ingress_id)
-        except Exception:
-            pass  # If listing fails, proceed to create
+        existing = await _twirp_request("ListIngress", {})
+        for ing in existing.get("items", []):
+            if ing.get("name") == ingress_name:
+                await _twirp_request("DeleteIngress", {"ingress_id": ing["ingress_id"]})
+    except Exception:
+        pass  # If listing fails, proceed to create
 
-        # Create a new WHIP ingress
-        try:
-            ingress = await api.ingress.create_ingress(
-                CreateIngressRequest(
-                    input_type=IngressInput.WHIP_INPUT,
-                    name=ingress_name,
-                    room_name=req.room,
-                    participant_identity=participant_identity,
-                    participant_name=f"{req.identity} ({req.track_type})",
-                )
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to create ingress: {str(e)}")
-    finally:
-        await api.aclose()
+    # Create a new WHIP ingress (input_type 3 = WHIP_INPUT)
+    try:
+        ingress = await _twirp_request("CreateIngress", {
+            "input_type": 3,
+            "name": ingress_name,
+            "room_name": req.room,
+            "participant_identity": participant_identity,
+            "participant_name": f"{req.identity} ({req.track_type})",
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create ingress: {str(e)}")
 
     # Also generate a viewer token for the client to subscribe to tracks
     viewer_token = (
@@ -139,5 +154,5 @@ async def get_whip_endpoint(req: WhipRequest):
     return WhipResponse(
         token=viewer_token.to_jwt(),
         url=LK_URL,
-        whip_url=ingress.url,
+        whip_url=ingress.get("url", ""),
     )
