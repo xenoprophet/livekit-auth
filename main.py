@@ -125,10 +125,10 @@ async def get_whip_endpoint(req: WhipRequest):
     except Exception:
         pass  # If listing fails, proceed to create
 
-    # Create a new WHIP ingress (input_type 3 = WHIP_INPUT)
+    # Create a new WHIP ingress (input_type 1 = WHIP_INPUT)
     try:
         ingress = await _twirp_request("CreateIngress", {
-            "input_type": 3,
+            "input_type": 1,
             "name": ingress_name,
             "room_name": req.room,
             "participant_identity": participant_identity,

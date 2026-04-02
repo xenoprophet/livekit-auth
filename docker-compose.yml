@@ -1,12 +1,48 @@
-version: '3.8'
-
 services:
-  auth:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - LK_API_KEY=${LK_API_KEY}
-      - LK_API_SECRET=${LK_API_SECRET}
-      - LK_URL=${LK_URL}
+  redis:
+    image: redis:7-alpine
+    networks:
+      br0:
+        ipv4_address: 192.168.1.14
     restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server
+    networks:
+      br0:
+        ipv4_address: 192.168.1.12
+    volumes:
+      - /mnt/user/appdata/livekit/config.yaml:/config/config.yaml
+    command: --config /config/config.yaml
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  ingress:
+    image: livekit/ingress
+    networks:
+      br0:
+        ipv4_address: 192.168.1.15
+    volumes:
+      - /mnt/user/appdata/livekit-ingress/config.yaml:/config/config.yaml
+    environment:
+      - INGRESS_CONFIG_FILE=/config/config.yaml
+    depends_on:
+      - redis
+      - livekit
+    restart: unless-stopped
+
+  auth:
+    image: ghcr.io/xenoprophet/livekit-auth:latest
+    networks:
+      br0:
+        ipv4_address: 192.168.1.13
+    environment:
+      - LK_API_KEY=Tk2z7x0Y2K7tzXY6Jtps9f6X9lRiD8Vo
+      - LK_API_SECRET=N89aC8Hr7AkP7IjpXv45nIPWBudwBdk6
+      - LK_URL=ws://192.168.1.12:7880
+    restart: unless-stopped
+
+networks:
+  br0:
+    external: true
