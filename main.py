@@ -84,6 +84,22 @@ def health():
     return {"status": "ok"}
 
 
+@app.post("/debug-ingress")
+async def debug_ingress():
+    """Debug endpoint to see raw ingress response."""
+    try:
+        result = await _twirp_request("CreateIngress", {
+            "input_type": 1,
+            "name": "debug-test",
+            "room_name": "debug",
+            "participant_identity": "debug-user",
+            "participant_name": "Debug User",
+        })
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.post("/token", response_model=TokenResponse)
 def get_token(req: TokenRequest):
     if not req.identity or not req.room:
@@ -137,8 +153,7 @@ async def get_whip_endpoint(req: WhipRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create ingress: {str(e)}")
 
-    import logging
-    logging.info(f"Ingress response: {ingress}")
+    print(f"Ingress response: {ingress}", flush=True)
 
     # Also generate a viewer token for the client to subscribe to tracks
     viewer_token = (
