@@ -1,8 +1,5 @@
 port: 7880
 
-redis:
-  address: 192.168.1.14:6379
-
 rtc:
   port_range_start: 50000
   port_range_end: 60000
@@ -11,6 +8,3 @@ rtc:
 
 keys:
   Tk2z7x0Y2K7tzXY6Jtps9f6X9lRiD8Vo: N89aC8Hr7AkP7IjpXv45nIPWBudwBdk6
-
-ingress:
-  whip_base_url: "http://192.168.1.15:8080/whip"

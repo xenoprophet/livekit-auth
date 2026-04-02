@@ -1,37 +1,4 @@
 services:
-  redis:
-    image: redis:7-alpine
-    networks:
-      br0:
-        ipv4_address: 192.168.1.14
-    restart: unless-stopped
-
-  livekit:
-    image: livekit/livekit-server
-    networks:
-      br0:
-        ipv4_address: 192.168.1.12
-    volumes:
-      - /mnt/user/appdata/livekit:/config
-    command: --config /config/config.yaml
-    depends_on:
-      - redis
-    restart: unless-stopped
-
-  ingress:
-    image: livekit/ingress
-    networks:
-      br0:
-        ipv4_address: 192.168.1.15
-    volumes:
-      - /mnt/user/appdata/livekit-ingress:/config
-    environment:
-      - INGRESS_CONFIG_FILE=/config/config.yaml
-    depends_on:
-      - redis
-      - livekit
-    restart: unless-stopped
-
   auth:
     image: ghcr.io/xenoprophet/livekit-auth:latest
     networks:

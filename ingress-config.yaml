@@ -1,8 +1,0 @@
-log_level: info
-api_key: Tk2z7x0Y2K7tzXY6Jtps9f6X9lRiD8Vo
-api_secret: N89aC8Hr7AkP7IjpXv45nIPWBudwBdk6
-ws_url: ws://192.168.1.12:7880
-redis:
-  address: 192.168.1.14:6379
-whip_port: 8080
-http_relay_port: 9090
