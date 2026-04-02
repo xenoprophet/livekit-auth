@@ -137,6 +137,9 @@ async def get_whip_endpoint(req: WhipRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create ingress: {str(e)}")
 
+    import logging
+    logging.info(f"Ingress response: {ingress}")
+
     # Also generate a viewer token for the client to subscribe to tracks
     viewer_token = (
         AccessToken(API_KEY, API_SECRET)
@@ -151,8 +154,17 @@ async def get_whip_endpoint(req: WhipRequest):
         )
     )
 
+    # The ingress response has 'url' (the full WHIP endpoint with stream key)
+    # and 'stream_key' as separate fields
+    whip_url = ingress.get("url", "")
+    stream_key = ingress.get("stream_key", "")
+
+    # If url is just the base, append the stream key
+    if stream_key and whip_url and not whip_url.endswith(stream_key):
+        whip_url = f"{whip_url}/{stream_key}"
+
     return WhipResponse(
         token=viewer_token.to_jwt(),
         url=LK_URL,
-        whip_url=ingress.get("url", ""),
+        whip_url=whip_url,
     )
