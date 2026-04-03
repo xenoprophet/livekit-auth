@@ -141,10 +141,7 @@ async def create_whip_ingress(req: WhipRequest):
         )
 
     stream_key = data.get("streamKey", "")
-
-    # Build the WHIP URL from the ingress service
-    base = LK_URL.replace("ws://", "http://").replace("wss://", "https://").rstrip("/")
-    whip_url = f"{base}/whip/{stream_key}" if stream_key else ""
+    whip_url = str(data.get("url") or "").strip()
 
     return WhipResponse(
         whip_url=whip_url,
