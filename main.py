@@ -39,6 +39,7 @@ class TokenResponse(BaseModel):
 class WhipRequest(BaseModel):
     identity: str
     room: str
+    track_type: str | None = None
 
 
 class WhipResponse(BaseModel):
@@ -109,7 +110,7 @@ async def create_whip_ingress(req: WhipRequest):
 
     payload = {
         "input_type": 1,
-        "name": f"whip-{req.identity}-{req.room}",
+        "name": f"whip-{req.track_type or 'stream'}-{req.identity}-{req.room}",
         "room_name": req.room,
         "participant_identity": f"{req.identity}-stream",
         "participant_name": req.identity,

@@ -69,6 +69,29 @@ ws://192.168.1.12:7880
 docker compose up -d
 ```
 
+## Unraid Paths
+
+This compose file is set up to use bind-mounted directories under:
+
+```text
+/mnt/user/appdata/livekit-auth/
+```
+
+Host directory layout:
+
+```text
+/mnt/user/appdata/livekit-auth/
+|-- livekit/
+|   `-- livekit-config.yaml
+`-- redis/
+```
+
+The LiveKit service reads its config from:
+
+```text
+/etc/livekit/livekit-config.yaml
+```
+
 ## Notes
 
 - CORS is open by default for local/private setups. Tighten it before exposing
