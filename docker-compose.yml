@@ -1,55 +1,10 @@
 services:
-  livekit:
-    image: livekit/livekit-server:latest
-    networks:
-      br0:
-        ipv4_address: 192.168.1.12
-    volumes:
-      - /mnt/user/appdata/livekit-auth/livekit:/etc/livekit
-    command: --config /etc/livekit/livekit-config.yaml
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    networks:
-      br0:
-        ipv4_address: 192.168.1.14
-    volumes:
-      - /mnt/user/appdata/livekit-auth/redis:/data
-    restart: unless-stopped
-
-  ingress:
-    image: livekit/ingress:latest
-    networks:
-      br0:
-        ipv4_address: 192.168.1.15
-    environment:
-      INGRESS_CONFIG_BODY: |
-        api_key: Tk2z7x0Y2K7tzXY6Jtps9f6X9lRiD8Vo
-        api_secret: N89aC8Hr7AkP7IjpXv45nIPWBudwBdk6
-        ws_url: ws://192.168.1.12:7880
-        redis:
-          address: 192.168.1.14:6379
-        logging:
-          level: info
-    depends_on:
-      - livekit
-      - redis
-    restart: unless-stopped
-
   auth:
-    image: ghcr.io/xenoprophet/livekit-auth:latest
-    networks:
-      br0:
-        ipv4_address: 192.168.1.13
+    build: .
+    ports:
+      - "3000:3000"
     environment:
-      LK_API_KEY: Tk2z7x0Y2K7tzXY6Jtps9f6X9lRiD8Vo
-      LK_API_SECRET: N89aC8Hr7AkP7IjpXv45nIPWBudwBdk6
-      LK_URL: ws://192.168.1.12:7880
-    depends_on:
-      - livekit
+      LK_API_KEY: ${LK_API_KEY}
+      LK_API_SECRET: ${LK_API_SECRET}
+      LK_URL: ${LK_URL}
     restart: unless-stopped
-
-networks:
-  br0:
-    external: true
