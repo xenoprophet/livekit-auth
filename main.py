@@ -140,8 +140,9 @@ async def create_whip_ingress(req: WhipRequest):
             detail=f"Failed to create ingress: {exc}",
         )
 
-    stream_key = data.get("streamKey", "")
-    whip_url = str(data.get("url") or "").strip()
+    stream_key = str(data.get("streamKey") or "").strip()
+    base_whip_url = str(data.get("url") or "").strip().rstrip("/")
+    whip_url = f"{base_whip_url}/{stream_key}" if base_whip_url and stream_key else base_whip_url
 
     return WhipResponse(
         whip_url=whip_url,
