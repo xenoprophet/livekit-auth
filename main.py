@@ -41,7 +41,11 @@ class PublishTargetRequest(BaseModel):
     identity: str
     room: str
     trackType: str = "screen"
-    protocol: str = "rtmp"
+    protocol: str = "whip"
+    width: int | None = None
+    height: int | None = None
+    frameRate: float | None = None
+    bitrateKbps: int | None = None
 
 
 class PublishTargetResponse(BaseModel):
@@ -51,13 +55,14 @@ class PublishTargetResponse(BaseModel):
     streamKey: str
     participantIdentity: str
     participantName: str
+    authToken: str = ""
 
 
 def _detect_publish_protocol(url: str) -> str:
     raw = str(url or "").strip()
     if "://" in raw:
         return raw.split("://", 1)[0].lower()
-    return "rtmp"
+    return "whip"
 
 
 @app.get("/health")
@@ -105,18 +110,18 @@ async def create_publish_target(req: PublishTargetRequest):
     if not req.identity or not req.room:
         raise HTTPException(status_code=400, detail="identity and room are required")
     requested_protocol = str(req.protocol or "").strip().lower()
-    if requested_protocol not in {"rtmp", "rtmps"}:
-        raise HTTPException(status_code=400, detail="Only RTMP/RTMPS publish targets are currently supported")
+    if requested_protocol != "whip":
+        raise HTTPException(status_code=400, detail="Only WHIP publish targets are currently supported")
 
     participant_identity = _build_participant_identity(req.identity, req.trackType)
     participant_name = _build_participant_name(req.identity, req.trackType)
     ingress_request = proto_ingress.CreateIngressRequest(
-        input_type=proto_ingress.RTMP_INPUT,
+        input_type=proto_ingress.WHIP_INPUT,
         name=f"{participant_identity}-{req.room}",
         room_name=req.room,
         participant_identity=participant_identity,
         participant_name=participant_name,
-        enable_transcoding=True,
+        enable_transcoding=False,
     )
 
     lkapi = api.LiveKitAPI(url=LK_URL, api_key=API_KEY, api_secret=API_SECRET)
@@ -136,6 +141,7 @@ async def create_publish_target(req: PublishTargetRequest):
         streamKey=str(getattr(ingress_info, "stream_key", "") or ""),
         participantIdentity=participant_identity,
         participantName=participant_name,
+        authToken="",
     )
 
 

@@ -15,6 +15,8 @@ The current Cozmeeq screenshare path is:
 - publish to LiveKit Ingress
 - reflected into the LiveKit room
 
+The current ingress target for screenshare is WHIP.
+
 ## Endpoints
 
 ### `GET /health`
@@ -44,7 +46,7 @@ Response:
 ### `POST /publish-target`
 
 Creates a reusable LiveKit ingress publish target for Cozmeeq's FFmpeg
-screenshare publisher.
+screenshare publisher. The app now requests a `whip` target by default.
 
 ## Configuration
 
@@ -66,16 +68,16 @@ The current hardcoded LAN addresses are:
 
 The current publish target is:
 
-- `ingress.rtmp_base_url = rtmp://192.168.1.14/live`
+- `ingress.whip_base_url = http://192.168.1.14:8080/whip`
 
-## RTMPS Note
+## HTTPS Note
 
-The stack is currently set to plain `RTMP` on the LAN so it works directly on
-`br0` without guessing a TLS endpoint.
+The stack is currently set to plain `http://` WHIP on the LAN so it works
+directly on `br0` without guessing a TLS endpoint.
 
-If you later want `RTMPS`, change the LiveKit `ingress.rtmp_base_url` in
-`livekit.yaml` to your real TLS front-end URL, for example
-`rtmps://stream.example.com/live`, and terminate TLS in front of Ingress.
+If you later want secure external ingest, change `ingress.whip_base_url` in
+`livekit.yaml` to your real HTTPS front-end URL, for example
+`https://stream.example.com/whip`, and terminate TLS in front of Ingress.
 
 ## Running
 

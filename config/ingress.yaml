@@ -9,7 +9,6 @@ logging:
   level: info
 
 health_port: 8081
-rtmp_port: 1935
 whip_port: 8080
 
 rtc_config:
