@@ -1,9 +1,19 @@
-# LiveKit Auth Service
+# LiveKit Auth / Ingress Stack
 
-Small FastAPI service that signs LiveKit room tokens for Cozmeeq.
+This folder now contains the small FastAPI auth service Cozmeeq uses, plus a
+Docker Compose stack for:
 
-The Electron client now publishes camera and screenshare directly with the
-LiveKit browser SDK. This service only mints room tokens.
+- LiveKit server
+- LiveKit Ingress
+- Redis
+- Auth middleware
+
+The current Cozmeeq screenshare path is:
+
+- bundled FFmpeg on the client
+- GPU H.264 encode when available
+- publish to LiveKit Ingress
+- reflected into the LiveKit room
 
 ## Endpoints
 
@@ -27,17 +37,45 @@ Response:
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "url": "ws://192.168.1.12:7880"
+  "url": "ws://192.168.1.13:7880"
 }
 ```
 
-## Environment Variables
+### `POST /publish-target`
 
-- `LK_API_KEY`
-- `LK_API_SECRET`
-- `LK_URL`
+Creates a reusable LiveKit ingress publish target for Cozmeeq's FFmpeg
+screenshare publisher.
 
-`LK_URL` should point at the LiveKit server you manage separately.
+## Configuration
+
+The stack now uses mounted config/data files that fit an Unraid-style setup
+better than embedded environment blobs.
+
+Mounted paths used by the compose file:
+
+- `/mnt/user/appdata/livekit-auth/config/livekit.yaml`
+- `/mnt/user/appdata/livekit-auth/config/ingress.yaml`
+- `/mnt/user/appdata/livekit-auth/data/redis`
+
+The current hardcoded LAN addresses are:
+
+- auth: `192.168.1.12`
+- livekit: `192.168.1.13`
+- ingress: `192.168.1.14`
+- redis: `192.168.1.15`
+
+The current publish target is:
+
+- `ingress.rtmp_base_url = rtmp://192.168.1.14/live`
+
+## RTMPS Note
+
+The stack is currently set to plain `RTMP` on the LAN so it works directly on
+`br0` without guessing a TLS endpoint.
+
+If you later want `RTMPS`, change the LiveKit `ingress.rtmp_base_url` in
+`livekit.yaml` to your real TLS front-end URL, for example
+`rtmps://stream.example.com/live`, and terminate TLS in front of Ingress.
 
 ## Running
 
@@ -45,11 +83,11 @@ Response:
 docker compose up -d
 ```
 
-This compose file starts only the auth service. It does not provision LiveKit
-or any media pipeline.
-
 ## Notes
 
+- LiveKit and Ingress must share the same Redis instance.
+- The compose file is set up for Unraid `br0` style static container IPs.
+- This compose file already targets `/mnt/user/appdata/livekit-auth/...` host
+  paths for Unraid-style bind mounts.
 - CORS is open by default for local/private setups. Tighten it before exposing
-  this service publicly.
-- This repo assumes direct LiveKit WebRTC publishing from the Electron client.
+  the auth service publicly.

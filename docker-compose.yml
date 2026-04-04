@@ -1,10 +1,65 @@
 services:
-  auth:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      LK_API_KEY: ${LK_API_KEY}
-      LK_API_SECRET: ${LK_API_SECRET}
-      LK_URL: ${LK_URL}
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    depends_on:
+      - redis
+    command:
+      - --config
+      - /etc/livekit/livekit.yaml
+    volumes:
+      - /mnt/user/appdata/livekit-auth/config:/etc/livekit:ro
+    networks:
+      br0:
+        ipv4_address: 192.168.1.13
     restart: unless-stopped
+
+  auth:
+    build: https://github.com/xenoprophet/livekit-auth.git
+    container_name: livekit-auth
+    depends_on:
+      - livekit
+    environment:
+      LK_API_KEY: Tk2z7x0Y2K7tzXY6Jtps9f6X9lRiD8Vo
+      LK_API_SECRET: N89aC8Hr7AkP7IjpXv45nIPWBudwBdk6
+      LK_URL: ws://192.168.1.13:7880
+    networks:
+      br0:
+        ipv4_address: 192.168.1.12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: livekit-redis
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1"
+    volumes:
+      - /mnt/user/appdata/livekit-auth/data/redis:/data
+    networks:
+      br0:
+        ipv4_address: 192.168.1.15
+    restart: unless-stopped
+
+  ingress:
+    image: livekit/ingress:latest
+    container_name: livekit-ingress
+    depends_on:
+      - livekit
+      - redis
+    environment:
+      INGRESS_CONFIG_FILE: /etc/livekit/ingress.yaml
+    volumes:
+      - /mnt/user/appdata/livekit-auth/config:/etc/livekit:ro
+    networks:
+      br0:
+        ipv4_address: 192.168.1.14
+    restart: unless-stopped
+
+networks:
+  br0:
+    external: true
