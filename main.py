@@ -121,7 +121,7 @@ async def create_publish_target(req: PublishTargetRequest):
         room_name=req.room,
         participant_identity=participant_identity,
         participant_name=participant_name,
-        enable_transcoding=False,
+        enable_transcoding=True,
     )
 
     lkapi = api.LiveKitAPI(url=LK_URL, api_key=API_KEY, api_secret=API_SECRET)
