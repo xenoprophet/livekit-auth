@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from livekit import api
 from livekit.api import AccessToken, VideoGrants
-from livekit.api.ingress_service import CreateIngressRequest, DeleteIngressRequest
+from livekit.protocol import ingress as proto_ingress
 from pydantic import BaseModel
 
 
@@ -110,8 +110,8 @@ async def create_publish_target(req: PublishTargetRequest):
 
     participant_identity = _build_participant_identity(req.identity, req.trackType)
     participant_name = _build_participant_name(req.identity, req.trackType)
-    ingress_request = CreateIngressRequest(
-        input_type=0,  # RTMP_INPUT
+    ingress_request = proto_ingress.CreateIngressRequest(
+        input_type=proto_ingress.RTMP_INPUT,
         name=f"{participant_identity}-{req.room}",
         room_name=req.room,
         participant_identity=participant_identity,
@@ -143,7 +143,7 @@ async def delete_publish_target(ingress_id: str):
     if not normalized_ingress_id:
         raise HTTPException(status_code=400, detail="ingress_id is required")
 
-    delete_request = DeleteIngressRequest(ingress_id=normalized_ingress_id)
+    delete_request = proto_ingress.DeleteIngressRequest(ingress_id=normalized_ingress_id)
     try:
         async with api.LiveKitAPI(url=LK_URL, api_key=API_KEY, api_secret=API_SECRET) as lkapi:
             await lkapi.ingress.delete_ingress(delete_request)
