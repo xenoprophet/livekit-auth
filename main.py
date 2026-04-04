@@ -119,11 +119,13 @@ async def create_publish_target(req: PublishTargetRequest):
         enable_transcoding=True,
     )
 
+    lkapi = api.LiveKitAPI(url=LK_URL, api_key=API_KEY, api_secret=API_SECRET)
     try:
-        async with api.LiveKitAPI(url=LK_URL, api_key=API_KEY, api_secret=API_SECRET) as lkapi:
-            ingress_info = await lkapi.ingress.create_ingress(ingress_request)
+        ingress_info = await lkapi.ingress.create_ingress(ingress_request)
     except Exception as exc:  # pragma: no cover - network/runtime failure path
         raise HTTPException(status_code=502, detail=f"Failed to create ingress: {exc}") from exc
+    finally:
+        await lkapi.aclose()
 
     ingress_url = str(getattr(ingress_info, "url", "") or "")
 
@@ -144,10 +146,12 @@ async def delete_publish_target(ingress_id: str):
         raise HTTPException(status_code=400, detail="ingress_id is required")
 
     delete_request = proto_ingress.DeleteIngressRequest(ingress_id=normalized_ingress_id)
+    lkapi = api.LiveKitAPI(url=LK_URL, api_key=API_KEY, api_secret=API_SECRET)
     try:
-        async with api.LiveKitAPI(url=LK_URL, api_key=API_KEY, api_secret=API_SECRET) as lkapi:
-            await lkapi.ingress.delete_ingress(delete_request)
+        await lkapi.ingress.delete_ingress(delete_request)
     except Exception as exc:  # pragma: no cover - network/runtime failure path
         raise HTTPException(status_code=502, detail=f"Failed to delete ingress: {exc}") from exc
+    finally:
+        await lkapi.aclose()
 
     return {"ok": True}
