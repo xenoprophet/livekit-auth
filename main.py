@@ -134,15 +134,14 @@ async def create_publish_target(req: PublishTargetRequest):
 
     ingress_url = str(getattr(ingress_info, "url", "") or "")
 
-    stream_key = str(getattr(ingress_info, "stream_key", "") or "")
     return PublishTargetResponse(
         protocol=_detect_publish_protocol(ingress_url),
         ingressId=str(getattr(ingress_info, "ingress_id", "") or ""),
         url=ingress_url,
-        streamKey=stream_key,
+        streamKey=str(getattr(ingress_info, "stream_key", "") or ""),
         participantIdentity=participant_identity,
         participantName=participant_name,
-        authToken=stream_key,
+        authToken="",
     )
 
 
