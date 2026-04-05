@@ -1,21 +1,29 @@
-# LiveKit Auth / Ingress Stack
+# LiveKit Auth Service
 
-This folder now contains the small FastAPI auth service Cozmeeq uses, plus a
-Docker Compose stack for:
+Small FastAPI service that signs LiveKit room tokens for Cozmeeq.
 
-- LiveKit server
-- LiveKit Ingress
-- Redis
-- Auth middleware
+The Electron client now publishes camera and screenshare directly with the
+standard LiveKit WebRTC SDK. This service only needs to mint room tokens.
 
-The current Cozmeeq screenshare path is:
+## What It Does
 
-- bundled FFmpeg on the client
-- GPU H.264 encode when available
-- publish to LiveKit Ingress
-- reflected into the LiveKit room
+- accepts a Cozmeeq identity and room id
+- returns a signed LiveKit JWT
+- returns the LiveKit WebSocket URL the client should connect to
 
-The current ingress target for screenshare is WHIP.
+It does **not** manage media publishing, Redis, or any external video pipeline.
+
+## Files
+
+```text
+livekit-auth/
+|-- main.py
+|-- requirements.txt
+|-- Dockerfile
+|-- docker-compose.yml
+|-- livekit-config.yaml
+`-- README.md
+```
 
 ## Endpoints
 
@@ -39,45 +47,21 @@ Response:
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "url": "ws://192.168.1.13:7880"
+  "url": "ws://192.168.1.12:7880"
 }
 ```
 
-### `POST /publish-target`
+## Environment Variables
 
-Creates a reusable LiveKit ingress publish target for Cozmeeq's FFmpeg
-screenshare publisher. The app now requests a `whip` target by default.
+- `LK_API_KEY`
+- `LK_API_SECRET`
+- `LK_URL`
 
-## Configuration
+`LK_URL` should be your LiveKit WebSocket URL, for example:
 
-The stack now uses mounted config/data files that fit an Unraid-style setup
-better than embedded environment blobs.
-
-Mounted paths used by the compose file:
-
-- `/mnt/user/appdata/livekit-auth/config/livekit.yaml`
-- `/mnt/user/appdata/livekit-auth/config/ingress.yaml`
-- `/mnt/user/appdata/livekit-auth/data/redis`
-
-The current hardcoded LAN addresses are:
-
-- auth: `192.168.1.12`
-- livekit: `192.168.1.13`
-- ingress: `192.168.1.14`
-- redis: `192.168.1.15`
-
-The current publish target is:
-
-- `ingress.whip_base_url = http://192.168.1.14:8080/whip`
-
-## HTTPS Note
-
-The stack is currently set to plain `http://` WHIP on the LAN so it works
-directly on `br0` without guessing a TLS endpoint.
-
-If you later want secure external ingest, change `ingress.whip_base_url` in
-`livekit.yaml` to your real HTTPS front-end URL, for example
-`https://stream.example.com/whip`, and terminate TLS in front of Ingress.
+```text
+ws://192.168.1.12:7880
+```
 
 ## Running
 
@@ -85,11 +69,35 @@ If you later want secure external ingest, change `ingress.whip_base_url` in
 docker compose up -d
 ```
 
+## Unraid Paths
+
+This compose file is set up to use bind-mounted directories under:
+
+```text
+/mnt/user/appdata/livekit-auth/
+```
+
+Host directory layout:
+
+```text
+/mnt/user/appdata/livekit-auth/
+|-- livekit/
+|   `-- livekit-config.yaml
+`-- redis/
+```
+
+The LiveKit service reads its config from:
+
+```text
+/etc/livekit/livekit-config.yaml
+```
+
 ## Notes
 
-- LiveKit and Ingress must share the same Redis instance.
-- The compose file is set up for Unraid `br0` style static container IPs.
-- This compose file already targets `/mnt/user/appdata/livekit-auth/...` host
-  paths for Unraid-style bind mounts.
 - CORS is open by default for local/private setups. Tighten it before exposing
-  the auth service publicly.
+  this service publicly.
+- This repo now assumes direct LiveKit WebRTC publishing from the Electron
+  client.
+- If your deployed LiveKit server config outside this repo still references
+  older distributed media services, update that config too before restarting
+  the stack.
