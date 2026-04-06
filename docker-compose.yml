@@ -15,9 +15,20 @@ services:
       br0:
         ipv4_address: 192.168.1.13
     environment:
+      # LiveKit token service
       LK_API_KEY: Tk2z7x0Y2K7tzXY6Jtps9f6X9lRiD8Vo
       LK_API_SECRET: N89aC8Hr7AkP7IjpXv45nIPWBudwBdk6
       LK_URL: ws://192.168.1.12:7880
+      # Message history — Ice connection to Murmur
+      MURMUR_ICE_HOST: 192.168.1.1
+      MURMUR_ICE_PORT: 6502
+      MURMUR_ICE_SECRET: ""
+      MURMUR_SERVER_ID: 1
+      CALLBACK_HOST: 192.168.1.13
+      API_SECRET: changeme
+      DB_PATH: /data/messages.db
+    volumes:
+      - /mnt/user/appdata/livekit-auth/history:/data
     depends_on:
       - livekit
     restart: unless-stopped

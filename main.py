@@ -1,19 +1,49 @@
 import os
+import sys
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from livekit.api import AccessToken, VideoGrants
 from pydantic import BaseModel
 
+# message-history lives one level up in the repo; add /app to sys.path so the
+# package is importable as `message_history` (the Dockerfile copies it there).
+_app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
 
-app = FastAPI(title="LiveKit Auth Service")
+try:
+    from message_history import api as history_api
+    from message_history import ice_listener
+    _HISTORY_ENABLED = True
+except Exception as _err:  # noqa: BLE001
+    print(f"[warn] Message history unavailable: {_err}", flush=True)
+    _HISTORY_ENABLED = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if _HISTORY_ENABLED:
+        ice_listener.start()
+    yield
+    if _HISTORY_ENABLED:
+        ice_listener.stop()
+
+
+app = FastAPI(title="Cozmeeq Services", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten this in production.
+    allow_origins=["*"],
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
+
+if _HISTORY_ENABLED:
+    app.include_router(history_api.router)
+
+# ── Config ────────────────────────────────────────────────────────────────────
 
 API_KEY = os.environ.get("LK_API_KEY")
 API_SECRET = os.environ.get("LK_API_SECRET")
@@ -25,6 +55,8 @@ if not LK_URL:
     raise RuntimeError("LK_URL environment variable must be set")
 
 
+# ── Models ────────────────────────────────────────────────────────────────────
+
 class TokenRequest(BaseModel):
     identity: str
     room: str
@@ -34,6 +66,8 @@ class TokenResponse(BaseModel):
     token: str
     url: str
 
+
+# ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
