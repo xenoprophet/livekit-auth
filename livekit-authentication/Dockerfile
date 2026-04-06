@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 WORKDIR /app
 
 # Install Python dependencies (includes slice2py)
-COPY livekit-auth/requirements.txt .
+# Build context is cozmeeq-addons/
+COPY livekit-authentication/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Compile Murmur.ice → message_history/generated/Murmur_ice.py
@@ -22,13 +23,11 @@ subprocess.run( \
 )"
 
 # Copy app source
-COPY livekit-auth/main.py .
+COPY livekit-authentication/main.py .
 COPY message-history/__init__.py       message_history/__init__.py
 COPY message-history/db.py             message_history/db.py
 COPY message-history/ice_listener.py   message_history/ice_listener.py
 COPY message-history/api.py            message_history/api.py
-# generated/__init__.py is already present from the slice2py step,
-# but copy ours to ensure the package is importable even if slice fails
 COPY message-history/generated/__init__.py message_history/generated/__init__.py
 
 EXPOSE 3000

@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+*.pyo
+messages.db
+.env
+generated/Murmur_ice.py

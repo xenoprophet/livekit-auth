@@ -7,9 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from livekit.api import AccessToken, VideoGrants
 from pydantic import BaseModel
 
-# message-history lives one level up in the repo; add /app to sys.path so the
-# package is importable as `message_history` (the Dockerfile copies it there).
-_app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# message_history/ is a sibling of main.py in /app — add that dir to sys.path.
+_app_dir = os.path.dirname(os.path.abspath(__file__))
 if _app_dir not in sys.path:
     sys.path.insert(0, _app_dir)
 
